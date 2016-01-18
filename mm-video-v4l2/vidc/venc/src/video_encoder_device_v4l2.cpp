@@ -1443,7 +1443,12 @@ bool venc_dev::venc_get_buf_req(OMX_U32 *min_buff_count,
         ret = ioctl(m_nDriver_fd, VIDIOC_G_FMT, &fmt);
         m_sInput_buff_property.datasize=fmt.fmt.pix_mp.plane_fmt[0].sizeimage;
 
-        m_sInput_buff_property.mincount = m_sInput_buff_property.actualcount = actualCount;
+        if (metadatamode && mBatchSize) {
+            m_sInput_buff_property.mincount = m_sInput_buff_property.actualcount = actualCount;
+        } else {
+            m_sInput_buff_property.mincount = m_sInput_buff_property.actualcount = bufreq.count;
+        }
+
         *min_buff_count = m_sInput_buff_property.mincount;
         *actual_buff_count = m_sInput_buff_property.actualcount;
 #ifdef USE_ION
@@ -4310,6 +4315,7 @@ bool venc_dev::venc_set_intra_period(OMX_U32 nPFrames, OMX_U32 nBFrames)
     int rc;
     struct v4l2_control control;
     int pframe = 0, bframe = 0;
+    char property_value[PROPERTY_VALUE_MAX] = {0};
 
     if ((codec_profile.profile != V4L2_MPEG_VIDEO_MPEG4_PROFILE_ADVANCED_SIMPLE) &&
             (codec_profile.profile != V4L2_MPEG_VIDEO_H264_PROFILE_MAIN) &&
@@ -4331,6 +4337,14 @@ bool venc_dev::venc_set_intra_period(OMX_U32 nPFrames, OMX_U32 nBFrames)
     {
         DEBUG_PRINT_ERROR("Invalid settings, Hybrid HP enabled with LTR OR Hier-pLayers OR bframes");
         return false;
+    }
+
+    if (m_sVenc_cfg.input_width * m_sVenc_cfg.input_height >= 3840 * 2160 &&
+        (property_get("vidc.enc.disable_bframes", property_value, "0") && atoi(property_value))) {
+        intra_period.num_pframes = intra_period.num_pframes + intra_period.num_bframes;
+        intra_period.num_bframes = 0;
+        DEBUG_PRINT_LOW("Warning: Disabling B frames for UHD recording pFrames = %d bFrames = %d",
+                         intra_period.num_pframes, intra_period.num_bframes);
     }
 
     control.id = V4L2_CID_MPEG_VIDC_VIDEO_NUM_P_FRAMES;
@@ -6491,9 +6505,11 @@ encExtradata::encExtradata(class omx_venc *venc_handle)
 {
     mCount = 0;
     mSize = 0;
+    mUaddr = NULL;
+    memset(&mIon, -1, sizeof(struct venc_ion));
+    memset(mIndex, 0, sizeof(mIndex));
     mVencHandle = venc_handle;
     mDbgEtbCount = 0;
-    memset(mIndex, 0, sizeof(mIndex));
     pthread_mutex_init(&lock, NULL);
 }
 

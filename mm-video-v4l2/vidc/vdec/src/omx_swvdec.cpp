@@ -1,7 +1,7 @@
 /**
  * @copyright
  *
- *   Copyright (c) 2015, The Linux Foundation. All rights reserved.
+ *   Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions are met:
@@ -2208,6 +2208,8 @@ OMX_ERRORTYPE omx_swvdec::fill_this_buffer(OMX_HANDLETYPE        cmp_handle,
                                      p_private_handle->fd,
                                      m_port_op.def.nBufferSize);
 
+                pthread_mutex_unlock(&m_meta_buffer_array_mutex);
+
                 retval = OMX_ErrorInsufficientResources;
                 goto fill_this_buffer_exit;
             }
@@ -3191,65 +3193,25 @@ OMX_ERRORTYPE omx_swvdec::describe_color_format(
             p_img->mPlane[MediaImage::Y].mVertSubsampling  = 1;
 
             // plane 1 (U)
-            p_img->mPlane[MediaImage::Y].mOffset = stride * scanlines;
-            p_img->mPlane[MediaImage::Y].mColInc = 2;
-            p_img->mPlane[MediaImage::Y].mRowInc = stride;
-            p_img->mPlane[MediaImage::Y].mHorizSubsampling = 2;
-            p_img->mPlane[MediaImage::Y].mVertSubsampling  = 2;
+            p_img->mPlane[MediaImage::U].mOffset = stride * scanlines;
+            p_img->mPlane[MediaImage::U].mColInc = 2;
+            p_img->mPlane[MediaImage::U].mRowInc = stride;
+            p_img->mPlane[MediaImage::U].mHorizSubsampling = 2;
+            p_img->mPlane[MediaImage::U].mVertSubsampling  = 2;
 
             // plane 2 (V)
-            p_img->mPlane[MediaImage::Y].mOffset = stride * scanlines + 1;
-            p_img->mPlane[MediaImage::Y].mColInc = 2;
-            p_img->mPlane[MediaImage::Y].mRowInc = stride;
-            p_img->mPlane[MediaImage::Y].mHorizSubsampling = 2;
-            p_img->mPlane[MediaImage::Y].mVertSubsampling  = 2;
+            p_img->mPlane[MediaImage::V].mOffset = stride * scanlines + 1;
+            p_img->mPlane[MediaImage::V].mColInc = 2;
+            p_img->mPlane[MediaImage::V].mRowInc = stride;
+            p_img->mPlane[MediaImage::V].mHorizSubsampling = 2;
+            p_img->mPlane[MediaImage::V].mVertSubsampling  = 2;
 
             break;
         }
 
         case OMX_COLOR_FormatYUV420SemiPlanar:
         {
-            size_t stride, scanlines;
-
-            p_img->mType = MediaImage::MEDIA_IMAGE_TYPE_YUV;
-            p_img->mNumPlanes = 3;
-
-            p_img->mWidth  = p_params->nFrameWidth;
-            p_img->mHeight = p_params->nFrameHeight;
-
-            /**
-             * alignment factors:
-             *
-             * - stride:    16
-             * - scanlines: 16
-             */
-            stride    = ALIGN(p_img->mWidth,  16);
-            scanlines = ALIGN(p_img->mHeight, 16);
-
-            p_img->mBitDepth = 8;
-
-            // plane 0 (Y)
-            p_img->mPlane[MediaImage::Y].mOffset = 0;
-            p_img->mPlane[MediaImage::Y].mColInc = 1;
-            p_img->mPlane[MediaImage::Y].mRowInc = stride;
-            p_img->mPlane[MediaImage::Y].mHorizSubsampling = 1;
-            p_img->mPlane[MediaImage::Y].mVertSubsampling  = 1;
-
-            // plane 1 (U)
-            p_img->mPlane[MediaImage::Y].mOffset = stride * scanlines;
-            p_img->mPlane[MediaImage::Y].mColInc = 2;
-            p_img->mPlane[MediaImage::Y].mRowInc = stride;
-            p_img->mPlane[MediaImage::Y].mHorizSubsampling = 2;
-            p_img->mPlane[MediaImage::Y].mVertSubsampling  = 2;
-
-            // plane 2 (V)
-            p_img->mPlane[MediaImage::Y].mOffset = stride * scanlines + 1;
-            p_img->mPlane[MediaImage::Y].mColInc = 2;
-            p_img->mPlane[MediaImage::Y].mRowInc = stride;
-            p_img->mPlane[MediaImage::Y].mHorizSubsampling = 2;
-            p_img->mPlane[MediaImage::Y].mVertSubsampling  = 2;
-
-            break;
+            return OMX_ErrorUnsupportedSetting;
         }
 
         default:

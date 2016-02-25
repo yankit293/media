@@ -783,9 +783,17 @@ int venc_dev::venc_set_format(int format)
 {
     int rc = true;
 
-    if (format)
+    if (format) {
         color_format = format;
-    else {
+
+        switch (color_format) {
+        case NV12_128m:
+            return venc_set_color_format((OMX_COLOR_FORMATTYPE)QOMX_COLOR_FORMATYUV420PackedSemiPlanar32m);
+        default:
+            return false;
+        }
+
+    } else {
         color_format = 0;
         rc = false;
     }
@@ -1167,6 +1175,8 @@ bool venc_dev::venc_open(OMX_U32 codec)
         m_sOutput_buff_property.alignment = SZ_4K;
         m_sInput_buff_property.alignment  = SZ_4K;
     }
+
+    memset(&fmt, 0, sizeof(fmt));
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     fmt.fmt.pix_mp.height = m_sVenc_cfg.dvs_height;
     fmt.fmt.pix_mp.width = m_sVenc_cfg.dvs_width;
@@ -1183,6 +1193,7 @@ bool venc_dev::venc_open(OMX_U32 codec)
 
     m_sOutput_buff_property.datasize=fmt.fmt.pix_mp.plane_fmt[0].sizeimage;
 
+    memset(&fmt, 0, sizeof(fmt));
     fmt.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
     fmt.fmt.pix_mp.height = m_sVenc_cfg.input_height;
     fmt.fmt.pix_mp.width = m_sVenc_cfg.input_width;
@@ -1470,6 +1481,7 @@ bool venc_dev::venc_get_buf_req(OMX_U32 *min_buff_count,
         mInputExtradata.update(m_sInput_buff_property.actualcount + 1, extra_data_size);
     } else {
         unsigned int extra_idx = 0;
+        memset(&fmt, 0, sizeof(fmt));
         fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
         fmt.fmt.pix_mp.height = m_sVenc_cfg.dvs_height;
         fmt.fmt.pix_mp.width = m_sVenc_cfg.dvs_width;
@@ -1558,6 +1570,8 @@ bool venc_dev::venc_set_param(void *paramData, OMX_INDEXTYPE index)
                         DEBUG_PRINT_LOW("Basic parameter has changed");
                         m_sVenc_cfg.input_height = portDefn->format.video.nFrameHeight;
                         m_sVenc_cfg.input_width = portDefn->format.video.nFrameWidth;
+
+                        memset(&fmt, 0, sizeof(fmt));
                         fmt.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
                         fmt.fmt.pix_mp.height = m_sVenc_cfg.input_height;
                         fmt.fmt.pix_mp.width = m_sVenc_cfg.input_width;
@@ -1591,6 +1605,8 @@ bool venc_dev::venc_set_param(void *paramData, OMX_INDEXTYPE index)
                 } else if (portDefn->nPortIndex == PORT_INDEX_OUT) {
                     m_sVenc_cfg.dvs_height = portDefn->format.video.nFrameHeight;
                     m_sVenc_cfg.dvs_width = portDefn->format.video.nFrameWidth;
+
+                    memset(&fmt, 0, sizeof(fmt));
                     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
                     fmt.fmt.pix_mp.height = m_sVenc_cfg.dvs_height;
                     fmt.fmt.pix_mp.width = m_sVenc_cfg.dvs_width;
@@ -2227,6 +2243,16 @@ bool venc_dev::venc_set_param(void *paramData, OMX_INDEXTYPE index)
                 if (ioctl(m_nDriver_fd, VIDIOC_S_CTRL, &control)) {
                     DEBUG_PRINT_ERROR("ERROR: Setting OMX_QTIIndexParamVideoEnableRoiInfo failed");
                     return OMX_ErrorUnsupportedSetting;
+                }
+                break;
+            }
+        case OMX_QcomIndexConfigVideoVencLowLatencyMode:
+            {
+                QOMX_ENABLETYPE *pParam = (QOMX_ENABLETYPE*)paramData;
+
+                if (!venc_set_lowlatency_mode(pParam->bEnable)) {
+                     DEBUG_PRINT_ERROR("Setting low latency mode failed");
+                     return OMX_ErrorUnsupportedSetting;
                 }
                 break;
             }
@@ -3173,6 +3199,8 @@ bool venc_dev::venc_empty_buf(void *buffer, void *pmem_data_buf, unsigned index,
                     private_handle_t *handle = (private_handle_t *)meta_buf->meta_handle;
                     if (!streaming[OUTPUT_PORT]) {
                         struct v4l2_format fmt;
+                        memset(&fmt, 0, sizeof(fmt));
+
                         fmt.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
                         if (handle->format == HAL_PIXEL_FORMAT_NV12_ENCODEABLE) {
                             if ((handle->flags & private_handle_t::PRIV_FLAGS_UBWC_ALIGNED) &&
@@ -4821,6 +4849,7 @@ bool venc_dev::venc_set_color_format(OMX_COLOR_FORMATTYPE color_format)
             break;
     }
 
+    memset(&fmt, 0, sizeof(fmt));
     fmt.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
     fmt.fmt.pix_mp.pixelformat = m_sVenc_cfg.inputformat;
     fmt.fmt.pix_mp.height = m_sVenc_cfg.input_height;
@@ -5255,6 +5284,7 @@ bool venc_dev::venc_set_vpe_rotation(OMX_S32 rotation_angle)
     }
     DEBUG_PRINT_LOW("Success IOCTL set control for id=%x, value=%d", control.id, control.value);
 
+    memset(&fmt, 0, sizeof(fmt));
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     fmt.fmt.pix_mp.height = m_sVenc_cfg.dvs_height;
     fmt.fmt.pix_mp.width = m_sVenc_cfg.dvs_width;
@@ -5529,6 +5559,28 @@ bool venc_dev::venc_set_max_hierp(OMX_U32 hierp_layers)
                 hierp_layers);
         return false;
     }
+}
+
+bool venc_dev::venc_set_lowlatency_mode(OMX_BOOL enable)
+{
+    int rc = 0;
+    struct v4l2_control control;
+
+    control.id = V4L2_CID_MPEG_VIDC_VIDEO_LOWLATENCY_MODE;
+    if (enable)
+        control.value = V4L2_CID_MPEG_VIDC_VIDEO_LOWLATENCY_ENABLE;
+    else
+        control.value = V4L2_CID_MPEG_VIDC_VIDEO_LOWLATENCY_DISABLE;
+
+    DEBUG_PRINT_LOW("Calling IOCTL set control for id=%x, val=%d", control.id, control.value);
+    rc = ioctl(m_nDriver_fd, VIDIOC_S_CTRL, &control);
+    if (rc) {
+        DEBUG_PRINT_ERROR("Failed to set lowlatency control");
+        return false;
+    }
+    DEBUG_PRINT_LOW("Success IOCTL set control for id=%x, value=%d", control.id, control.value);
+
+    return true;
 }
 
 bool venc_dev::venc_set_baselayerid(OMX_U32 baseid)

@@ -139,7 +139,7 @@ static const char* MEM_DEVICE = "/dev/pmem_smipool";
 #ifdef _ANDROID_ICS_
 #define MAX_NUM_INPUT_BUFFERS 64
 #endif
-void* message_thread(void *);
+void* message_thread_enc(void *);
 
 enum omx_venc_extradata_types {
     VENC_EXTRADATA_SLICEINFO = 0x100,
@@ -672,7 +672,6 @@ class omx_video: public qc_omx_component
         OMX_U8                m_cRole[OMX_MAX_STRINGNAME_SIZE];
         extra_data_handler extra_data_handle;
         bool hw_overload;
-        OMX_U32 m_graphicBufferSize;
         char m_platform[OMX_MAX_STRINGNAME_SIZE];
 };
 

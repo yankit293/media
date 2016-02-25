@@ -54,6 +54,7 @@ extern int m_pipe;
 static int bframes;
 static int entropy;
 static int perfmode;
+static int lowlatency;
 // factory function executed by the core to create instances
 void *get_omx_component_factory_fn(void)
 {
@@ -160,6 +161,9 @@ omx_venc::omx_venc()
     perfmode = atoi(property_value);
     property_value[0] = '\0';
     handle = NULL;
+    property_get("vidc.debug.lowlatency", property_value, "0");
+    lowlatency = atoi(property_value);
+    property_value[0] = '\0';
     m_perf_control.send_hint_to_mpctl(true);
 }
 
@@ -561,7 +565,7 @@ OMX_ERRORTYPE omx_venc::component_init(OMX_STRING role)
             }
         }
         msg_thread_created = true;
-        r = pthread_create(&msg_thread_id,0, message_thread, this);
+        r = pthread_create(&msg_thread_id,0, message_thread_enc, this);
         if (r < 0) {
             eRet = OMX_ErrorInsufficientResources;
             msg_thread_created = false;
@@ -584,6 +588,16 @@ OMX_ERRORTYPE omx_venc::component_init(OMX_STRING role)
             DEBUG_PRINT_ERROR("Failed setting PerfMode to %d", pParam.nPerfMode);
     }
 
+    if (lowlatency)
+    {
+        QOMX_ENABLETYPE low_latency;
+        low_latency.bEnable = OMX_TRUE;
+        DEBUG_PRINT_LOW("Enable lowlatency mode");
+        if (!handle->venc_set_param(&low_latency,
+               (OMX_INDEXTYPE)OMX_QcomIndexConfigVideoVencLowLatencyMode)) {
+            DEBUG_PRINT_ERROR("Failed enabling low latency mode");
+        }
+    }
     DEBUG_PRINT_INFO("Component_init : %s : return = 0x%x", m_nkind, eRet);
     return eRet;
 init_error:
@@ -1558,6 +1572,15 @@ OMX_ERRORTYPE  omx_venc::set_parameter(OMX_IN OMX_HANDLETYPE     hComp,
                 if (!handle->venc_set_param(paramData,
                             (OMX_INDEXTYPE)OMX_QTIIndexParamVideoEnableRoiInfo)) {
                     DEBUG_PRINT_ERROR("ERROR: Setting OMX_QTIIndexParamVideoEnableRoiInfo failed");
+                    return OMX_ErrorUnsupportedSetting;
+                }
+                break;
+            }
+        case OMX_QcomIndexConfigVideoVencLowLatencyMode:
+            {
+                if(!handle->venc_set_param(paramData,
+                            (OMX_INDEXTYPE)OMX_QcomIndexConfigVideoVencLowLatencyMode)) {
+                    DEBUG_PRINT_ERROR("Request to Enable Low latency mode failed");
                     return OMX_ErrorUnsupportedSetting;
                 }
                 break;

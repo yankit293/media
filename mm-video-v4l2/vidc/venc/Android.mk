@@ -55,17 +55,18 @@ endif
 
 # Common Includes
 libmm-venc-inc      := $(LOCAL_PATH)/inc
-libmm-venc-inc      += $(TOP)/hardware/qcom/media/mm-video-v4l2/vidc/common/inc
-libmm-venc-inc      += hardware/qcom/media/mm-core/inc
-libmm-venc-inc      += hardware/qcom/media/libstagefrighthw
-libmm-venc-inc      += $(TARGET_OUT_HEADERS)/qcom/display
+libmm-venc-inc      += $(TOP)/hardware/qcom/media-caf-msm8937/mm-video-v4l2/vidc/common/inc
+libmm-venc-inc      += $(TOP)/hardware/qcom/media-caf-msm8937/mm-core/inc
+libmm-venc-inc      += $(TOP)/hardware/qcom/media-caf-msm8937/libstagefrighthw
+libmm-venc-inc      += $(TARGET_OUT_HEADERS)/qcom/display-caf-msm8937
 libmm-venc-inc      += $(TARGET_OUT_HEADERS)/adreno
-libmm-venc-inc      += frameworks/native/include/media/hardware
-libmm-venc-inc      += frameworks/native/include/media/openmax
-libmm-venc-inc      += hardware/qcom/media/libc2dcolorconvert
+libmm-venc-inc      += $(TOP)/frameworks/native-caf/include/media/hardware
+libmm-venc-inc      += $(TOP)/frameworks/native-caf/include/media/openmax
+libmm-venc-inc      += $(TOP)/hardware/qcom/media-caf-msm8937/libc2dcolorconvert
 libmm-venc-inc      += $(TARGET_OUT_HEADERS)/libvqzip
-libmm-venc-inc      += frameworks/av/include/media/stagefright
+libmm-venc-inc      += $(TOP)/frameworks/av-caf/include/media/stagefright
 libmm-venc-inc      += $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr/include
+libmm-venc.inc      += $(TOP)/hardware/qcom/display-caf-msm8937/libgralloc
 
 # Common Dependencies
 libmm-venc-add-dep  := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
@@ -74,6 +75,7 @@ libmm-venc-add-dep  := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 # 			Make the Shared library (libOmxVenc)
 # ---------------------------------------------------------------------------------
 
+ifneq ($(QCPATH),)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE                    := libOmxVenc
@@ -98,6 +100,7 @@ LOCAL_SRC_FILES   += src/video_encoder_device_v4l2.cpp
 include $(BUILD_SHARED_LIBRARY)
 
 ifeq ($(call is-board-platform-in-list, $(TARGETS_THAT_NEED_SW_VENC_MPEG4)),true)
+endif
 # ---------------------------------------------------------------------------------
 # 			Make the Shared library (libOmxSwVencMpeg4)
 # ---------------------------------------------------------------------------------

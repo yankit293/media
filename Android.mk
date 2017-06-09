@@ -1,3 +1,4 @@
+ifeq ($(TARGET_QCOM_MEDIA_VARIANT),caf-msm8937)
 QCOM_MEDIA_ROOT := $(call my-dir)
 
 #Compile these for all targets under QCOM_BOARD_PLATFORMS list.
@@ -17,4 +18,5 @@ ifeq ($(TARGET_BOARD_PLATFORM),apq8084)
 include $(QCOM_MEDIA_ROOT)/videopp/Android.mk
 endif
 
+endif
 endif
